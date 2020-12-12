@@ -18,7 +18,9 @@ guncurry :: ( Generic tuple
             , D1 meta1 (C1 meta2 rep) ~ Rep tuple
             , RepToHList rep
             , args ~ ArgsList f
-            , args ~ RepList rep
+            , repArgs ~ RepList rep
+            , CheckLength args repArgs
+            , args ~ repArgs
             , Apply f args
             )
          => f -> tuple -> Codomain f
@@ -71,7 +73,7 @@ type family Codomain f :: Type where
 type family RepList (rep :: Type -> Type) :: [Type] where
   RepList (a :*: b) = Append (RepList a) (RepList b)
   RepList (S1 m (Rec0 x)) = '[x]
-  RepList x = TypeError ('Text "This type is not compatible with 'guncurry'.")
+  RepList x = TypeError ('Text "This type is not compatible with ‘guncurry’.")
 
 type family Append (a :: [Type]) (b :: [Type]) :: [Type] where
   Append '[] b = b
@@ -81,3 +83,7 @@ type family ArgsList f :: [Type] where
   ArgsList (a -> b) = a ': ArgsList b
   ArgsList x = '[]
 
+type family CheckLength (as :: [Type]) (bs :: [Type]) :: Constraint where
+  CheckLength (a ': as) (b ': bs) = CheckLength as bs
+  CheckLength '[] '[] = ()
+  CheckLength a b = TypeError ('Text "Arguments to ‘guncurry’ are not compatible.")
