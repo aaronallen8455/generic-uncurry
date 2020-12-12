@@ -4,9 +4,6 @@
   , GADTs
   , DataKinds
   , UndecidableInstances
-  , ScopedTypeVariables
-  , TypeApplications
-  , PolyKinds
   , FlexibleInstances
   , MultiParamTypeClasses #-}
 module GUncurry
@@ -17,8 +14,7 @@ import           Data.Kind
 import           GHC.Generics
 import           GHC.TypeLits (ErrorMessage(..), TypeError)
 
-guncurry :: forall f tuple args rep meta1 meta2.
-            ( Generic tuple
+guncurry :: ( Generic tuple
             , D1 meta1 (C1 meta2 rep) ~ Rep tuple
             , RepToHList rep
             , args ~ ArgsList f
