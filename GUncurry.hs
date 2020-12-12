@@ -14,43 +14,21 @@ module GUncurry
   ) where
 
 import           Data.Kind
-import           Data.Proxy
 import           GHC.Generics
 import           GHC.TypeLits (ErrorMessage(..), TypeError)
 
-guncurry :: forall f tuple numArgs rep meta1 meta2.
+guncurry :: forall f tuple args rep meta1 meta2.
             ( Generic tuple
             , D1 meta1 (C1 meta2 rep) ~ Rep tuple
             , RepToHList rep
-            , numArgs ~ CountArgs f
-            , NatSing numArgs
-            , ArgsList f ~ RepList rep
-            , Apply f numArgs
+            , args ~ ArgsList f
+            , args ~ RepList rep
+            , Apply f args
             )
          => f -> tuple -> Codomain f
-guncurry f tuple = apply nArgs f (toHList rep)
+guncurry f tuple = apply f (toHList rep)
   where
     M1 (M1 rep) = from tuple
-    nArgs = natSing $ Proxy @numArgs
-
---------------------------------------------------------------------------------
--- Peano numbers
---------------------------------------------------------------------------------
-
-data Nat = S Nat | Z
-
-data SNat :: Nat -> Type where
-  SZ :: SNat 'Z
-  SS :: SNat n -> SNat ('S n)
-
-class NatSing (n :: Nat) where
-  natSing :: Proxy n -> SNat n
-
-instance NatSing 'Z where
-  natSing _ = SZ
-
-instance NatSing n => NatSing ('S n) where
-  natSing _ = SS $ natSing (Proxy @n)
 
 --------------------------------------------------------------------------------
 -- Heterogenous list
@@ -77,22 +55,18 @@ instance RepToHList (S1 m (Rec0 a)) where
 instance (RepToHList a, RepToHList b) => RepToHList (a :*: b) where
   toHList (a :*: b) = catHList (toHList a) (toHList b)
 
-class Apply f (n :: Nat) where
-  apply :: SNat n -> f -> HList (ArgsList f) -> Codomain f
+class Apply f (args :: [Type]) where
+  apply :: f -> HList args -> Codomain f
 
-instance (CountArgs a ~ 'Z, Codomain a ~ a) => Apply a 'Z where
-  apply SZ a Nil = a
+instance Codomain a ~ a => Apply a '[] where
+  apply a Nil = a
 
-instance Apply b n => Apply (a -> b) ('S n) where
-  apply (SS n) f (Cons x xs) = apply n (f x) xs
+instance Apply b args => Apply (a -> b) (a ': args) where
+  apply f (Cons x xs) = apply (f x) xs
 
 --------------------------------------------------------------------------------
 -- Type families
 --------------------------------------------------------------------------------
-
-type family CountArgs f :: Nat where
-  CountArgs (a -> b) = 'S (CountArgs b)
-  CountArgs z = 'Z
 
 type family Codomain f :: Type where
   Codomain (a -> b) = Codomain b
@@ -101,7 +75,7 @@ type family Codomain f :: Type where
 type family RepList (rep :: Type -> Type) :: [Type] where
   RepList (a :*: b) = Append (RepList a) (RepList b)
   RepList (S1 m (Rec0 x)) = '[x]
-  RepList x = TypeError ('Text "Cannot form type list. Is this a Rep?")
+  RepList x = TypeError ('Text "This type is not compatible with 'guncurry'.")
 
 type family Append (a :: [Type]) (b :: [Type]) :: [Type] where
   Append '[] b = b
