@@ -15,6 +15,7 @@ import           GHC.Generics
 import           GHC.TypeLits (ErrorMessage(..), TypeError)
 
 guncurry :: ( Generic tuple
+            , CheckRep (Rep tuple)
             , D1 meta1 (C1 meta2 rep) ~ Rep tuple
             , RepToHList rep
             , args ~ ArgsList f
@@ -87,3 +88,7 @@ type family CheckLength (as :: [Type]) (bs :: [Type]) :: Constraint where
   CheckLength (a ': as) (b ': bs) = CheckLength as bs
   CheckLength '[] '[] = ()
   CheckLength a b = TypeError ('Text "Arguments to ‘guncurry’ are not compatible.")
+
+type family CheckRep (rep :: Type -> Type) :: Constraint where
+  CheckRep (D1 meta1 (C1 meta2 rep)) = ()
+  CheckRep x = TypeError ('Text "This type is not compatible with ‘guncurry’.")
